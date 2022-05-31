@@ -4,6 +4,8 @@ import {
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { JwtService } from '@nestjs/jwt';
 import { Users } from '@prisma/client';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime';
 import * as argon from 'argon2';
@@ -13,7 +15,11 @@ import { AuthRegisterDto } from './dto';
 
 @Injectable()
 export class AuthService {
-  constructor(private readonly prismaOrm: PrismaService) {}
+  constructor(
+    private readonly prismaOrm: PrismaService,
+    private readonly jwt: JwtService,
+    private readonly config: ConfigService,
+  ) {}
 
   async login(data: AuthRegisterDto) {
     const user = await this.getUserByEmail(data.email);
@@ -34,7 +40,10 @@ export class AuthService {
         ],
       });
 
-    return this.userToJson(user);
+    return [
+      this.userToJson(user),
+      await this.generateAccessToken({ user_id: user.id, email: user.email }),
+    ];
   }
 
   async signUp(data: AuthRegisterDto) {
@@ -65,6 +74,13 @@ export class AuthService {
   userToJson(user: Users) {
     delete user.password;
     return user;
+  }
+
+  async generateAccessToken(payload: { user_id: number; email: string }) {
+    return await this.jwt.signAsync(payload, {
+      expiresIn: 60 * 60,
+      secret: this.config.get('JWT_SECRET'),
+    });
   }
 
   isUniqueConstraintError(error) {

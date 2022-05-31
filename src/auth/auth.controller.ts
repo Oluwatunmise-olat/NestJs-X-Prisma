@@ -32,12 +32,14 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @UsePipes(new ValidationPipe({ whitelist: true, transform: true }))
   async signIn(@Body() body: AuthRegisterDto) {
+    const [user, access_token] = await this.authService.login(body);
+
     return {
       hasError: false,
       code: HttpStatus.OK,
       title: 'SignIn',
       message: 'User Sign In Success',
-      data: await this.authService.login(body),
+      data: { user, access_token },
     };
   }
 }
